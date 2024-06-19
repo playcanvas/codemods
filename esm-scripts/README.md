@@ -4,7 +4,13 @@ This codemod transforms legacy PlayCanvas Scripts into their newer modern equiva
 
 The codemod fully supports all syntax transformations apart from 'json' type attributes..
 
-Running the codemod over the following code...
+To run this codemod use 
+
+```sh
+npx codemod playcanvas-esm-scripts -i "./your-file.js"
+```
+
+This will translate the following older Script
 
 ```javascript
 var Rotator = pc.createScript('rotator');
