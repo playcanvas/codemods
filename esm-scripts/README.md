@@ -28,8 +28,6 @@ transforms it into the modern ESM Scripts format
 ```javascript
 import { Script } from 'playcanvas'
 
-import { Script, Vec2, Vec3, Vec4, Color } from "playcanvas";
-
 export class Rotator extends Script {
     /** 
      * @attribute

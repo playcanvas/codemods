@@ -11,6 +11,8 @@ const scriptNameMap = {
     curve: 'Curve',
 };
 
+const supportedTypes = Object.values(scriptNameMap);
+
 /**
  * Creates an AST node for a class property with a comment block.
  * @param {*} j
@@ -39,7 +41,7 @@ ${step && '* @step ' + step}
     let propertyValue = null;
 
     if (defaultValue) {
-        if (['Vec2', 'Vec3', 'Vec4'].includes(type)) {
+        if (supportedTypes.includes(type)) {
             propertyValue = j.newExpression(
                 j.identifier(type),
                 defaultValue.elements,
@@ -60,6 +62,7 @@ export default function transformer(file, api) {
     const j = api.jscodeshift;
     const root = j(file.source);
     const enumClasses = [];
+    const imports = new Set();
 
     // Find all the pc.createScript() calls in the file
     const scripts = root.find(j.VariableDeclaration).filter((path) => {
@@ -96,37 +99,19 @@ export default function transformer(file, api) {
                 },
                 property: { name: 'add' },
             },
-        }).forEach((attrPath) => {
+        }).forEach((attrPath) => {\
+            // Get the attribute name and details
             const [name, details] = attrPath.value.arguments;
-            const type = details.properties.find((p) => p.key.name === 'type')
-                .value.value;
-            const defaultValueProp = details.properties.find(
-                (p) => p.key.name === 'default',
-            );
-            const descriptionProp = details.properties.find(
-                (p) => p.key.name === 'description',
-            );
-            const minProp = details.properties.find(
-                (p) => p.key.name === 'min',
-            );
-            const maxProp = details.properties.find(
-                (p) => p.key.name === 'max',
-            );
-            const stepProp = details.properties.find(
-                (p) => p.key.name === 'step',
-            );
-            const precisionProp = details.properties.find(
-                (p) => p.key.name === 'precision',
-            );
-            const assetTypeProp = details.properties.find(
-                (p) => p.key.name === 'assetType',
-            );
-            const arrayProp = details.properties.find(
-                (p) => p.key.name === 'array',
-            );
-            const enumProp = details.properties.find(
-                (p) => p.key.name === 'enum',
-            );
+            const type = details.properties.find((p) => p.key.name === 'type').value.value;
+            const defaultValueProp = details.properties.find((p) => p.key.name === 'default');
+            const descriptionProp = details.properties.find((p) => p.key.name === 'description');
+            const minProp = details.properties.find((p) => p.key.name === 'min');
+            const maxProp = details.properties.find((p) => p.key.name === 'max');
+            const stepProp = details.properties.find((p) => p.key.name === 'step');
+            const precisionProp = details.properties.find((p) => p.key.name === 'precision');
+            const assetTypeProp = details.properties.find((p) => p.key.name === 'assetType');
+            const arrayProp = details.properties.find((p) => p.key.name === 'array');
+            const enumProp = details.properties.find((p) => p.key.name === 'enum');
 
             const additionalProps = {
                 description: descriptionProp ? descriptionProp.value.value : '',
@@ -145,6 +130,12 @@ export default function transformer(file, api) {
                 ? defaultValueProp.value
                 : null;
 
+            // Add the import statement for the type
+            console.log(jsType);
+            if (supportedTypes.includes(jsType)) {
+                imports.add(jsType);
+            }
+
             // handle enums
             if (enumProp) {
                 const enumName = `${
@@ -152,9 +143,7 @@ export default function transformer(file, api) {
                 }Enum`;
                 additionalProps.enumClass = enumName;
                 const enumElements = enumProp.value.elements.map((el) => {
-                    const key = Object.keys(el.properties[0].key).includes(
-                        'name',
-                    )
+                    const key = Object.keys(el.properties[0].key).includes('name')
                         ? el.properties[0].key.name
                         : el.properties[0].key.value;
                     const value = el.properties[0].value.value;
@@ -244,19 +233,13 @@ export default function transformer(file, api) {
         root.get().node.program.body.unshift(enumClass);
     });
 
-    // Add the import statement
-    const importStatement = j.importDeclaration(
-        [
-            j.importSpecifier(j.identifier('Script')),
-            j.importSpecifier(j.identifier('Vec2')),
-            j.importSpecifier(j.identifier('Vec3')),
-            j.importSpecifier(j.identifier('Vec4')),
-            j.importSpecifier(j.identifier('Color')),
-        ],
-        j.literal('playcanvas'),
-    );
+    const deps = Array.from(imports).map((importName) => {
+        return j.importSpecifier(j.identifier(importName));
+    });
 
-    root.get().node.program.body.unshift(importStatement);
+    // Add the import statement
+    const importStatement = j.importDeclaration(deps, j.literal('playcanvas'));
+    if (deps.length > 0) root.get().node.program.body.unshift(importStatement);
 
     return root.toSource();
 }
