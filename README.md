@@ -1,4 +1,4 @@
-## PlayCanvas codemods
+## PlayCanvas Codemods
 
 This repo contains any codemods to help with migration of PlayCanvas specific code.
 
