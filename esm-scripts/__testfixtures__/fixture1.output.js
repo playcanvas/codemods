@@ -1,10 +1,29 @@
 import { Script, Vec2, Vec3, Vec4, Color } from "playcanvas";
 
-/*** @interface {number}*/
+/*** @enum {number}*/
 class SomeEnumEnum {
     valueOne = 1;
     valueTwo = 2;
     valueThree = 3;
+}
+
+/** @interface */
+class SomeComplexInterface {
+    /**
+     * Will use Shared Array Buffer for communication between frontend and backend. Falls back to Array Buffer if not available.
+     * 
+     * @type {boolean}
+     * @title Enable Shared Array Buffer
+     */
+    useSharedArrayBuffer = true;
+
+    /**
+     * The size of the commands buffer in bytes (a buffer used for communication between frontend and backend).
+     * 
+     * @type {number}
+     * @title Commands Buffer Size
+     */
+    commandsBufferSize = 10000;
 }
 
 export class ClassName extends Script {
@@ -34,6 +53,14 @@ export class ClassName extends Script {
     someEnum;
 
     /** 
+     * Oh and this is an complex type
+     *
+     * @attribute
+     * @type {SomeComplexInterface[]}
+     */
+    someComplex;
+
+    /** 
      * @attribute
      * @type {entity[]}
      */
@@ -61,12 +88,11 @@ export class ClassName extends Script {
      * @attribute
      * @type {Color}
      */
-    myColor = [1, 2, 3, 1];
+    myColor = new Color(1, 2, 3, 1);
 
     /** 
      * @attribute
      * @type {asset}
-     
      * @resource texture
      */
     myAsset;

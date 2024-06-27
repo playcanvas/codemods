@@ -22,13 +22,19 @@ const supportedTypes = Object.values(scriptNameMap);
  * @param {*} additionalProps - Additional properties to add to the comment block
  * @returns
  */
-const createProperty = (j, name, type, defaultValue, additionalProps) => {
+const createProperty = (
+    j,
+    name,
+    type,
+    defaultValue,
+    additionalProps,
+    requiresAttributeTag = true,
+) => {
     const { description, range, resource, precision, step, isArray } =
         additionalProps;
     const jsType = isArray ? `${type}[]` : type;
 
-    const commentBlock = `${description && ' * ' + description + '\n *'}
-* @attribute
+    const commentBlock = `${description && ' * ' + description + '\n *'}${requiresAttributeTag ? '\n * @attribute' : ''}
  * @type {${jsType}}
 ${range && ' * @range ' + range}
 ${resource && ' * @resource ' + resource}
@@ -58,10 +64,40 @@ ${step && '* @step ' + step}
     return property;
 };
 
+// /**
+//  * Creates an AST node for an interface property with a comment block.
+//  * @param {*} j
+//  * @param {*} name - The name of the property
+//  * @param {*} type - The type of the property
+//  * @param {*} additionalProps - Additional properties to add to the comment block
+//  * @returns
+//  */
+// const createInterfaceProperty = (j, name, type, defaultValue, additionalProps) => {
+//     const { description, title } = additionalProps;
+
+//     const commentBlock = `${description && ' * ' + description + '\n *'}
+// ${title && ' * @title ' + title}
+//  * @type {${type}}
+// `.trim();
+
+//     const props = [j.commentBlock(`* \n ${commentBlock}\n `)];
+
+//     const property = j.classProperty(
+//         j.identifier(name),
+//         null,
+//         j.tsTypeAnnotation(j.tsTypeReference(j.identifier(type))),
+//     );
+
+//     property.comments = props;
+
+//     return property;
+// };
+
 export default function transformer(file, api) {
     const j = api.jscodeshift;
     const root = j(file.source);
     const enumClasses = [];
+    const interfaces = [];
     const imports = new Set();
 
     // Find all the pc.createScript() calls in the file
@@ -99,19 +135,44 @@ export default function transformer(file, api) {
                 },
                 property: { name: 'add' },
             },
-        }).forEach((attrPath) => {\
+        }).forEach((attrPath) => {
             // Get the attribute name and details
             const [name, details] = attrPath.value.arguments;
-            const type = details.properties.find((p) => p.key.name === 'type').value.value;
-            const defaultValueProp = details.properties.find((p) => p.key.name === 'default');
-            const descriptionProp = details.properties.find((p) => p.key.name === 'description');
-            const minProp = details.properties.find((p) => p.key.name === 'min');
-            const maxProp = details.properties.find((p) => p.key.name === 'max');
-            const stepProp = details.properties.find((p) => p.key.name === 'step');
-            const precisionProp = details.properties.find((p) => p.key.name === 'precision');
-            const assetTypeProp = details.properties.find((p) => p.key.name === 'assetType');
-            const arrayProp = details.properties.find((p) => p.key.name === 'array');
-            const enumProp = details.properties.find((p) => p.key.name === 'enum');
+            const type = details.properties.find((p) => p.key.name === 'type')
+                .value.value;
+            const defaultValueProp = details.properties.find(
+                (p) => p.key.name === 'default',
+            );
+            const descriptionProp = details.properties.find(
+                (p) => p.key.name === 'description',
+            );
+            const minProp = details.properties.find(
+                (p) => p.key.name === 'min',
+            );
+            const maxProp = details.properties.find(
+                (p) => p.key.name === 'max',
+            );
+            const stepProp = details.properties.find(
+                (p) => p.key.name === 'step',
+            );
+            const titleProp = details.properties.find(
+                (p) => p.key.name === 'title',
+            );
+            const precisionProp = details.properties.find(
+                (p) => p.key.name === 'precision',
+            );
+            const assetTypeProp = details.properties.find(
+                (p) => p.key.name === 'assetType',
+            );
+            const arrayProp = details.properties.find(
+                (p) => p.key.name === 'array',
+            );
+            const enumProp = details.properties.find(
+                (p) => p.key.name === 'enum',
+            );
+            const schemaProp = details.properties.find(
+                (p) => p.key.name === 'schema',
+            );
 
             const additionalProps = {
                 description: descriptionProp ? descriptionProp.value.value : '',
@@ -131,7 +192,6 @@ export default function transformer(file, api) {
                 : null;
 
             // Add the import statement for the type
-            console.log(jsType);
             if (supportedTypes.includes(jsType)) {
                 imports.add(jsType);
             }
@@ -143,7 +203,9 @@ export default function transformer(file, api) {
                 }Enum`;
                 additionalProps.enumClass = enumName;
                 const enumElements = enumProp.value.elements.map((el) => {
-                    const key = Object.keys(el.properties[0].key).includes('name')
+                    const key = Object.keys(el.properties[0].key).includes(
+                        'name',
+                    )
                         ? el.properties[0].key.name
                         : el.properties[0].key.value;
                     const value = el.properties[0].value.value;
@@ -164,12 +226,104 @@ export default function transformer(file, api) {
                     [],
                 );
 
-                enumClass.comments = [
-                    j.commentBlock(`** @interface {${type}}`),
-                ];
+                enumClass.comments = [j.commentBlock(`** @enum {${type}}`)];
 
                 enumClasses.push(enumClass);
                 jsType = enumName;
+            }
+
+            // handle JSON schema
+            if (schemaProp) {
+                const interfaceName = `${
+                    name.value.charAt(0).toUpperCase() + name.value.slice(1)
+                }Interface`;
+
+                const interfaceElements = schemaProp.value.elements.map(
+                    (el) => {
+                        // const [name, details] = el.value.arguments;
+                        const propName = el.properties.find(
+                            (p) => p.key.name === 'name',
+                        ).value;
+                        const propType = el.properties.find(
+                            (p) => p.key.name === 'type',
+                        ).value.value;
+                        const defaultValueProp = el.properties.find(
+                            (p) => p.key.name === 'default',
+                        );
+                        const descriptionProp = el.properties.find(
+                            (p) => p.key.name === 'description',
+                        );
+                        const minProp = el.properties.find(
+                            (p) => p.key.name === 'min',
+                        );
+                        const maxProp = el.properties.find(
+                            (p) => p.key.name === 'max',
+                        );
+                        const stepProp = el.properties.find(
+                            (p) => p.key.name === 'step',
+                        );
+                        const titleProp = el.properties.find(
+                            (p) => p.key.name === 'title',
+                        );
+                        const precisionProp = el.properties.find(
+                            (p) => p.key.name === 'precision',
+                        );
+                        const assetTypeProp = el.properties.find(
+                            (p) => p.key.name === 'assetType',
+                        );
+                        const arrayProp = el.properties.find(
+                            (p) => p.key.name === 'array',
+                        );
+
+                        const additionalProps = {
+                            description: descriptionProp
+                                ? descriptionProp.value.value
+                                : '',
+                            range:
+                                minProp && maxProp
+                                    ? `[${minProp.value.value}, ${maxProp.value.value}]`
+                                    : '',
+                            resource: assetTypeProp
+                                ? assetTypeProp.value.value
+                                : '',
+                            precision: precisionProp
+                                ? precisionProp.value.value
+                                : '',
+                            step: stepProp ? stepProp.value.value : '',
+                            isArray: arrayProp ? arrayProp.value.value : false,
+                        };
+
+                        let jsType = scriptNameMap[propType] || propType;
+                        const defaultValue = defaultValueProp
+                            ? defaultValueProp.value
+                            : null;
+
+                        return createProperty(
+                            // j,
+                            // propName,
+                            // jsType,
+                            // { description: propDescription, title: propTitle }
+                            j,
+                            propName.value,
+                            jsType,
+                            defaultValue,
+                            additionalProps,
+                            false,
+                        );
+                    },
+                );
+
+                const interfaceClass = j.classDeclaration(
+                    j.identifier(interfaceName),
+                    j.classBody(interfaceElements),
+                    null,
+                    [],
+                );
+
+                interfaceClass.comments = [j.commentBlock(`** @interface`)];
+
+                interfaces.push(interfaceClass);
+                jsType = interfaceName;
             }
 
             attributes.push(
@@ -231,6 +385,11 @@ export default function transformer(file, api) {
     // Add the enum classes at the top of the file
     enumClasses.forEach((enumClass) => {
         root.get().node.program.body.unshift(enumClass);
+    });
+
+    // Add the interface classes at the top of the file
+    interfaces.forEach((interfaceClass) => {
+        root.get().node.program.body.unshift(interfaceClass);
     });
 
     const deps = Array.from(imports).map((importName) => {

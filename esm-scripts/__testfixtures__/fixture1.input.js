@@ -24,6 +24,27 @@ ClassName.attributes.add('someEnum', {
     ]
 });
 
+ClassName.attributes.add('someComplex', {
+    type: 'json',
+    description: 'Oh and this is an complex type',
+    array: true,
+    schema: [
+        {
+            name: 'useSharedArrayBuffer',
+            type: 'boolean',
+            title: 'Enable Shared Array Buffer',
+            description: 'Will use Shared Array Buffer for communication between frontend and backend. Falls back to Array Buffer if not available.',
+            default: true
+        }, {
+            name: 'commandsBufferSize',
+            type: 'number',
+            title: 'Commands Buffer Size',
+            description: 'The size of the commands buffer in bytes (a buffer used for communication between frontend and backend).',
+            default: 10000
+        }
+    ]
+});
+
 ClassName.attributes.add('myEntities', { type: 'entity', array: true });
 ClassName.attributes.add('myVec2', { type: 'vec2', default: [1, 2] });
 ClassName.attributes.add('myVec3', { type: 'vec3', default: [1, 2, 3] });
