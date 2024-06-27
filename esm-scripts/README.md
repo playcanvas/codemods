@@ -2,7 +2,7 @@
 
 This codemod transforms legacy PlayCanvas Scripts into their newer modern equivalents. You can open this codemod and run it over your existing scripts in vscode using the link to the side.
 
-The codemod fully supports all syntax transformations apart from 'json' type attributes..
+The codemod fully supports all syntax transformations.
 
 To run this codemod use 
 
@@ -43,4 +43,4 @@ export class Rotator extends Script {
 
 ```
 
-It will map any attribute properties to their relevant jsdocs tags [according to the spec](https://github.com/playcanvas/editor/issues/1148), and export all classes in the correct format. It will also handle enums correctly.
+It will map any attribute properties to their relevant jsdocs tags [according to the spec](https://github.com/playcanvas/editor/issues/1148), and export all classes in the correct format. It will also handle enums correctly and complex attributes.
