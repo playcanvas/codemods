@@ -1,7 +1,7 @@
 {
   "$schema": "https://codemod-utils.s3.us-west-1.amazonaws.com/configuration_schema.json",
   "name": "playcanvas-esm-scripts",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "engine": "jscodeshift",
   "private": false,
   "arguments": [],
